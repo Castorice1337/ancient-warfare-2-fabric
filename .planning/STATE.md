@@ -8,7 +8,7 @@
 See: `.planning/PROJECT.md` (updated 2026-04-10)
 
 **Core value:** Players should experience the AW2 core gameplay loop on Minecraft 1.21.11 with behavior parity that can be verified against the local 1.12.2 reference.
-**Current focus:** Phase 2 - Golden Scenario Capture
+**Current focus:** Phase 2 - Golden Scenario Capture (Batch A checkpoint)
 
 ## Current Milestone
 
@@ -24,7 +24,7 @@ Primary outputs:
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | Legacy Reference Bring-Up | Complete |
-| 2 | Golden Scenario Capture | Ready |
+| 2 | Golden Scenario Capture | In Progress |
 | 3 | Behavior Spec And Source Mapping | Pending |
 | 4 | Modern Port Foundations | Pending |
 | 5 | Logistics And Labor Vertical Slice | Pending |
@@ -36,7 +36,7 @@ Primary outputs:
 - Target repo: Fabric `1.21.11` / Java `21` / `columbina`
 - Legacy reference repo: AW2 `2.7.0` / Minecraft `1.12.2` / Forge `14.23.5.2816`
 - Phase 1 proof: local reference client booted, joined an integrated world, and shut down cleanly
-- Next execution target: record the first Golden Reference scenarios on top of the rescued local environment
+- Next execution target: complete Batch A singleplayer Golden captures in the local reference client and then consolidate them into the canonical workbook
 
 ## Open Risks
 
@@ -56,3 +56,4 @@ Primary outputs:
 - Phase 1 artifacts live in `.planning/phases/01-legacy-reference-bring-up/`
 - The rescued reference setup is documented in `01-LEGACY-REFERENCE-SETUP.md`
 - ARCH-01 is now treated as complete for project tracking
+- Phase 2 plans live in `.planning/phases/02-golden-scenario-capture/`
