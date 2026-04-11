@@ -2,6 +2,7 @@ package com.columbina.content.logistics.entity
 
 import com.columbina.content.logistics.courier.CourierPersistence
 import com.columbina.content.logistics.courier.CourierTransferController
+import com.columbina.content.logistics.OwnedLogisticsTarget
 import com.columbina.content.logistics.item.RoutingOrderItem
 import net.minecraft.network.chat.Component
 import net.minecraft.world.InteractionHand
@@ -22,7 +23,7 @@ import net.minecraft.world.level.storage.ValueOutput
 class CourierEntity(
     entityType: EntityType<out PathfinderMob>,
     level: Level,
-) : PathfinderMob(entityType, level) {
+) : PathfinderMob(entityType, level), OwnedLogisticsTarget {
     companion object {
         fun createAttributes(): AttributeSupplier.Builder {
             return Mob.createMobAttributes()
@@ -34,6 +35,10 @@ class CourierEntity(
     val backpackInventory = SimpleContainer(27)
     val transferController = CourierTransferController(this)
     var ordersStack: ItemStack = ItemStack.EMPTY
+        private set
+    override var ownerName: String? = null
+    override var ownerUuid: String? = null
+    var moveItemExperience: Int = 0
         private set
 
     override fun registerGoals() {
@@ -48,6 +53,9 @@ class CourierEntity(
     override fun mobInteract(player: Player, hand: InteractionHand): InteractionResult {
         val held = player.getItemInHand(hand)
         if (held.item is RoutingOrderItem) {
+            if (ownerUuid == null) {
+                setOwner(player)
+            }
             ordersStack = held.copy()
             transferController.onOrdersChanged()
             if (!level().isClientSide) {
@@ -58,11 +66,27 @@ class CourierEntity(
         return super.mobInteract(player, hand)
     }
 
+    fun hasCommandPermissions(targetOwnerUuid: String?, targetOwnerName: String?): Boolean {
+        if (targetOwnerUuid.isNullOrBlank() && targetOwnerName.isNullOrBlank()) {
+            return true
+        }
+        return targetOwnerUuid == ownerUuid || (!targetOwnerName.isNullOrBlank() && targetOwnerName == ownerName)
+    }
+
+    fun addExperience(amount: Int) {
+        moveItemExperience += amount
+    }
+
+    fun courierLevel(): Int = moveItemExperience / 100
+
     override fun addAdditionalSaveData(valueOutput: ValueOutput) {
         super.addAdditionalSaveData(valueOutput)
         CourierPersistence.writeRouteState(valueOutput, transferController)
         CourierPersistence.writeOrderStack(valueOutput, ordersStack)
         CourierPersistence.writeBackpack(valueOutput, backpackInventory)
+        valueOutput.putString("ownerName", ownerName.orEmpty())
+        valueOutput.putString("ownerUuid", ownerUuid.orEmpty())
+        valueOutput.putInt("moveItemExperience", moveItemExperience)
     }
 
     override fun readAdditionalSaveData(valueInput: ValueInput) {
@@ -73,6 +97,9 @@ class CourierEntity(
         }
         CourierPersistence.readBackpack(valueInput, backpackInventory)
         CourierPersistence.readRouteState(valueInput, transferController)
+        ownerName = valueInput.getStringOr("ownerName", "").ifBlank { null }
+        ownerUuid = valueInput.getStringOr("ownerUuid", "").ifBlank { null }
+        moveItemExperience = valueInput.getIntOr("moveItemExperience", 0)
         transferController.onOrdersChanged()
     }
 }

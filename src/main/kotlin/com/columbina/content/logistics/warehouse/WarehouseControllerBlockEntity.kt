@@ -1,5 +1,6 @@
 package com.columbina.content.logistics.warehouse
 
+import com.columbina.content.logistics.OwnedLogisticsTarget
 import com.columbina.content.logistics.screen.WarehouseControlScreenHandler
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory
@@ -27,7 +28,7 @@ import net.minecraft.world.level.storage.ValueOutput
 class WarehouseControllerBlockEntity(
     pos: BlockPos,
     state: BlockState,
-) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_CONTROL, pos, state), MenuProvider, ExtendedScreenHandlerFactory<BlockPos> {
+) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_CONTROL, pos, state), MenuProvider, ExtendedScreenHandlerFactory<BlockPos>, OwnedLogisticsTarget {
     companion object {
         private const val DISPLAY_SLOTS = 54
         private const val RESCAN_INTERVAL = 40
@@ -47,6 +48,8 @@ class WarehouseControllerBlockEntity(
 
     var sortType: WarehouseSortType = WarehouseSortType.NAME
     var sortOrder: WarehouseSortOrder = WarehouseSortOrder.DESCENDING
+    override var ownerName: String? = null
+    override var ownerUuid: String? = null
 
     private var currentStored: Int = 0
     private var maxStorage: Int = 0
@@ -379,6 +382,8 @@ class WarehouseControllerBlockEntity(
         restoreDisplayInventory()
         currentStored = input.getIntOr("currentStored", 0)
         maxStorage = input.getIntOr("maxStorage", 0)
+        ownerName = input.getStringOr("ownerName", "").ifBlank { null }
+        ownerUuid = input.getStringOr("ownerUuid", "").ifBlank { null }
         initialized = false
     }
 
@@ -389,6 +394,8 @@ class WarehouseControllerBlockEntity(
         output.putString("displaySnapshot", displaySnapshot)
         output.putInt("currentStored", currentStored)
         output.putInt("maxStorage", maxStorage)
+        output.putString("ownerName", ownerName.orEmpty())
+        output.putString("ownerUuid", ownerUuid.orEmpty())
     }
 
     private fun restoreDisplayInventory() {

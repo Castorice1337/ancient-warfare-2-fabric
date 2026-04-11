@@ -1,13 +1,18 @@
 package com.columbina.content.logistics.courier
 
+import com.columbina.content.logistics.OwnedLogisticsTarget
 import com.columbina.content.logistics.entity.CourierEntity
 import com.columbina.content.logistics.item.RoutingOrderItemAccess
 import com.columbina.content.logistics.order.RoutingOrder
 import net.minecraft.world.Container
 import net.minecraft.world.WorldlyContainer
-import kotlin.math.max
 
 class CourierTransferController(private val courier: CourierEntity) {
+    companion object {
+        private const val NPC_WORK_TICKS = 50
+        private const val NPC_XP_FROM_MOVE_ITEM = 1
+    }
+
     var routeIndex: Int = 0
     var ticksToWork: Int = 0
     var ticksAtSite: Int = 0
@@ -70,7 +75,11 @@ class CourierTransferController(private val courier: CourierEntity) {
         ticksAtSite = 0
         val moved = currentOrder.handleRouteAction(currentOrder.get(routeIndex), courier.backpackInventory, target)
         if (moved > 0) {
-            ticksToWork = max(10, moved * 10)
+            courier.addExperience(moved * NPC_XP_FROM_MOVE_ITEM)
+            ticksToWork = (NPC_WORK_TICKS - 30 - courier.courierLevel()) * moved
+            if (ticksToWork < 0) {
+                ticksToWork = 0
+            }
             return
         }
 
@@ -80,6 +89,9 @@ class CourierTransferController(private val courier: CourierEntity) {
     private fun getTargetContainer(order: RoutingOrder): Container? {
         val point = order.get(routeIndex)
         val blockEntity = courier.level().getBlockEntity(point.target)
+        if (blockEntity is OwnedLogisticsTarget && !courier.hasCommandPermissions(blockEntity.ownerUuid, blockEntity.ownerName)) {
+            return null
+        }
         return when (blockEntity) {
             is WorldlyContainer -> DirectionalContainerView(blockEntity, point.blockSide)
             is Container -> blockEntity

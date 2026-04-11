@@ -1,11 +1,15 @@
 package com.columbina.content.logistics.warehouse
 
+import com.columbina.content.logistics.OwnedLogisticsTarget
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderLookup
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientGamePacketListener
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket
+import net.minecraft.world.WorldlyContainer
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.Container
 import net.minecraft.world.ContainerHelper
 import net.minecraft.world.SimpleContainer
 import net.minecraft.world.level.Level
@@ -18,7 +22,7 @@ class WarehouseStorageBlockEntity(
     pos: BlockPos,
     state: BlockState,
     private val tier: WarehouseStorageTier,
-) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_STORAGE, pos, state), ControlledWarehouseTile {
+) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_STORAGE, pos, state), ControlledWarehouseTile, OwnedLogisticsTarget, WorldlyContainer {
     companion object {
         fun fromState(pos: BlockPos, state: BlockState): WarehouseStorageBlockEntity {
             val tier = when (state.block) {
@@ -38,6 +42,8 @@ class WarehouseStorageBlockEntity(
     }
 
     override var controllerPos: BlockPos? = null
+    override var ownerName: String? = null
+    override var ownerUuid: String? = null
 
     val inventory: SimpleContainer = TrackingContainer(tier.slotCount, ::onInventoryChanged)
     private val filters = mutableListOf<WarehouseStorageFilter>()
@@ -115,6 +121,30 @@ class WarehouseStorageBlockEntity(
         return inserted
     }
 
+    override fun getSlotsForFace(side: net.minecraft.core.Direction): IntArray = IntArray(inventory.containerSize) { it }
+
+    override fun canPlaceItemThroughFace(slot: Int, stack: net.minecraft.world.item.ItemStack, side: net.minecraft.core.Direction?): Boolean = true
+
+    override fun canTakeItemThroughFace(slot: Int, stack: net.minecraft.world.item.ItemStack, side: net.minecraft.core.Direction): Boolean = true
+
+    override fun getContainerSize(): Int = inventory.containerSize
+
+    override fun isEmpty(): Boolean = inventory.isEmpty
+
+    override fun getItem(slot: Int): net.minecraft.world.item.ItemStack = inventory.getItem(slot)
+
+    override fun removeItem(slot: Int, amount: Int): net.minecraft.world.item.ItemStack = inventory.removeItem(slot, amount)
+
+    override fun removeItemNoUpdate(slot: Int): net.minecraft.world.item.ItemStack = inventory.removeItemNoUpdate(slot)
+
+    override fun setItem(slot: Int, stack: net.minecraft.world.item.ItemStack) = inventory.setItem(slot, stack)
+
+    override fun stillValid(player: Player): Boolean = inventory.stillValid(player)
+
+    override fun clearContent() = inventory.clearContent()
+
+    override fun canPlaceItem(slot: Int, stack: net.minecraft.world.item.ItemStack): Boolean = inventory.canPlaceItem(slot, stack)
+
     fun tryAdd(stack: net.minecraft.world.item.ItemStack): net.minecraft.world.item.ItemStack {
         val inserted = insertItem(stack, stack.count)
         val remainder = stack.copy()
@@ -148,6 +178,8 @@ class WarehouseStorageBlockEntity(
         }
         filters.clear()
         filters.addAll(decodeStorageFilters(input.getStringOr("filters", "")))
+        ownerName = input.getStringOr("ownerName", "").ifBlank { null }
+        ownerUuid = input.getStringOr("ownerUuid", "").ifBlank { null }
         attemptedControllerResolve = false
     }
 
@@ -161,6 +193,8 @@ class WarehouseStorageBlockEntity(
             output.putInt("controllerZ", it.z)
         }
         output.putString("filters", encodeStorageFilters(filters))
+        output.putString("ownerName", ownerName.orEmpty())
+        output.putString("ownerUuid", ownerUuid.orEmpty())
     }
 
     override fun getUpdatePacket(): Packet<ClientGamePacketListener> = ClientboundBlockEntityDataPacket.create(this)

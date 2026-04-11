@@ -21,6 +21,7 @@ class CourierSpawnerItem(properties: Properties) : Item(properties.stacksTo(1)) 
         val courier = ColumbinaEntities.COURIER.create(level, EntitySpawnReason.SPAWN_ITEM_USE)
         if (courier is CourierEntity) {
             courier.setPos(pos.x + 0.5, pos.y.toDouble(), pos.z + 0.5)
+            courier.setOwner(player)
             level.addFreshEntity(courier)
             player.displayClientMessage(Component.literal("Spawned courier"), true)
         }

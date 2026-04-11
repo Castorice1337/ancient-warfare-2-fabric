@@ -1,5 +1,6 @@
 package com.columbina.content.logistics.warehouse
 
+import com.columbina.content.logistics.OwnedLogisticsTarget
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderLookup
@@ -7,6 +8,8 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientGamePacketListener
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket
+import net.minecraft.world.WorldlyContainer
+import net.minecraft.world.Container
 import net.minecraft.world.ContainerHelper
 import net.minecraft.world.MenuProvider
 import net.minecraft.world.SimpleContainer
@@ -25,7 +28,7 @@ import com.columbina.content.logistics.screen.WarehouseInterfaceScreenHandler
 class WarehouseInterfaceBlockEntity(
     pos: BlockPos,
     state: BlockState,
-) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_INTERFACE, pos, state), ControlledWarehouseTile, MenuProvider, ExtendedScreenHandlerFactory<BlockPos> {
+) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_INTERFACE, pos, state), ControlledWarehouseTile, MenuProvider, ExtendedScreenHandlerFactory<BlockPos>, OwnedLogisticsTarget, WorldlyContainer {
     data class InterfaceFillRequest(val requestedItem: ItemStack, val requestAmount: Int)
     data class InterfaceEmptyRequest(val slotNum: Int, val count: Int)
 
@@ -37,6 +40,8 @@ class WarehouseInterfaceBlockEntity(
     }
 
     override var controllerPos: BlockPos? = null
+    override var ownerName: String? = null
+    override var ownerUuid: String? = null
 
     val inventory: SimpleContainer = TrackingContainer(9, ::onInventoryChanged)
     private val fillRequests = mutableListOf<InterfaceFillRequest>()
@@ -123,6 +128,30 @@ class WarehouseInterfaceBlockEntity(
         recalcRequests()
     }
 
+    override fun getSlotsForFace(side: net.minecraft.core.Direction): IntArray = IntArray(inventory.containerSize) { it }
+
+    override fun canPlaceItemThroughFace(slot: Int, stack: ItemStack, side: net.minecraft.core.Direction?): Boolean = true
+
+    override fun canTakeItemThroughFace(slot: Int, stack: ItemStack, side: net.minecraft.core.Direction): Boolean = true
+
+    override fun getContainerSize(): Int = inventory.containerSize
+
+    override fun isEmpty(): Boolean = inventory.isEmpty
+
+    override fun getItem(slot: Int): ItemStack = inventory.getItem(slot)
+
+    override fun removeItem(slot: Int, amount: Int): ItemStack = inventory.removeItem(slot, amount)
+
+    override fun removeItemNoUpdate(slot: Int): ItemStack = inventory.removeItemNoUpdate(slot)
+
+    override fun setItem(slot: Int, stack: ItemStack) = inventory.setItem(slot, stack)
+
+    override fun stillValid(player: Player): Boolean = inventory.stillValid(player)
+
+    override fun clearContent() = inventory.clearContent()
+
+    override fun canPlaceItem(slot: Int, stack: ItemStack): Boolean = inventory.canPlaceItem(slot, stack)
+
     override fun isValidController(controller: WarehouseControllerBlockEntity): Boolean {
         val min = controller.getWorkBoundsMin()
         val max = controller.getWorkBoundsMax()
@@ -144,6 +173,8 @@ class WarehouseInterfaceBlockEntity(
         }
         filters.clear()
         filters.addAll(decodeInterfaceFilters(input.getStringOr("filters", "")))
+        ownerName = input.getStringOr("ownerName", "").ifBlank { null }
+        ownerUuid = input.getStringOr("ownerUuid", "").ifBlank { null }
         initialized = false
     }
 
@@ -157,6 +188,8 @@ class WarehouseInterfaceBlockEntity(
             output.putInt("controllerZ", it.z)
         }
         output.putString("filters", encodeInterfaceFilters(filters))
+        output.putString("ownerName", ownerName.orEmpty())
+        output.putString("ownerUuid", ownerUuid.orEmpty())
     }
 
     private fun notifyClientUpdate() {
