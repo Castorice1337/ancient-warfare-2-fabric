@@ -4,6 +4,7 @@ import com.columbina.content.research.ImportedResearchRegistry
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import com.columbina.runtime.init.ColumbinaBlocks
 import com.columbina.runtime.init.ColumbinaCommands
+import com.columbina.runtime.init.ColumbinaEntities
 import com.columbina.runtime.init.ColumbinaItems
 import com.columbina.runtime.init.ColumbinaScreenHandlers
 import com.columbina.runtime.network.ColumbinaNetworking
@@ -27,6 +28,7 @@ object ColumbinaRuntime {
         ColumbinaItems.bootstrap()
         ColumbinaBlocks.bootstrap()
         ColumbinaBlockEntities.bootstrap()
+        ColumbinaEntities.bootstrap()
         ColumbinaScreenHandlers.bootstrap()
         ColumbinaNetworking.bootstrap()
         ColumbinaSavedData.bootstrap()
