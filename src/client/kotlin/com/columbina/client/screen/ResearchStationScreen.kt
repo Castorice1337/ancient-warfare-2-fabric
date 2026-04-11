@@ -3,6 +3,7 @@ package com.columbina.client.screen
 import com.columbina.client.research.ClientResearchState
 import com.columbina.content.research.ImportedResearchRegistry
 import com.columbina.content.research.screen.ResearchStationScreenHandler
+import com.columbina.runtime.ColumbinaIds
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
@@ -17,9 +18,9 @@ class ResearchStationScreen(
     inventory: Inventory,
     title: Component,
 ) : AbstractContainerScreen<ResearchStationScreenHandler>(menu, inventory, title) {
-    private val background = Identifier.fromNamespaceAndPath("columbina", "textures/gui/guibackgroundlarge.png")
-    private val widgets1 = Identifier.fromNamespaceAndPath("columbina", "textures/gui/guibuttons1.png")
-    private val widgets2 = Identifier.fromNamespaceAndPath("columbina", "textures/gui/guibuttons2.png")
+    private val background = ColumbinaIds.columbinaId("textures/gui/guibackgroundlarge.png")
+    private val widgets1 = ColumbinaIds.columbinaId("textures/gui/guibuttons1.png")
+    private val widgets2 = ColumbinaIds.columbinaId("textures/gui/guibuttons2.png")
     private val queueAddButtons = mutableListOf<Button>()
     private val queueRemoveButtons = mutableListOf<Button>()
     private lateinit var adjacentButton: Button
@@ -74,6 +75,7 @@ class ResearchStationScreen(
     }
 
     override fun renderBg(guiGraphics: GuiGraphics, partialTick: Float, mouseX: Int, mouseY: Int) {
+        guiGraphics.fill(0, 0, width, height, 0x60000000)
         blitQuartered(guiGraphics, background, 0, 0, 256, 240, leftPos, topPos, imageWidth, imageHeight)
 
         menu.slots.forEach { slot ->

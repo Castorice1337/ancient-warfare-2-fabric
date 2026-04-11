@@ -1,10 +1,16 @@
 package com.columbina.content.research.item
 
+import com.columbina.content.research.screen.ResearchBookScreenHandler
 import com.columbina.runtime.init.ColumbinaItems
+import com.columbina.runtime.research.ResearchRuntimeService
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
@@ -30,19 +36,35 @@ class ResearchBookItem(properties: Properties) : Item(properties.stacksTo(1)) {
 
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResult {
         val stack = player.getItemInHand(hand)
+        val researcherName = getResearcherName(stack)
 
         if (!level.isClientSide) {
-            if (getResearcherName(stack) == null) {
+            if (researcherName == null) {
                 CustomData.update(DataComponents.CUSTOM_DATA, stack) { tag ->
                     tag.putString(RESEARCHER_NAME, player.name.string)
                 }
                 player.displayClientMessage(Component.translatable("guistrings.research.book_bound"), true)
-            } else {
-                player.displayClientMessage(Component.translatable("guistrings.research.right_click_to_view"), true)
+            } else if (player is ServerPlayer) {
+                openResearchBook(level as ServerLevel, player, researcherName)
             }
         }
 
         return InteractionResult.SUCCESS
+    }
+
+    private fun openResearchBook(level: ServerLevel, player: ServerPlayer, researcherName: String) {
+        ResearchRuntimeService.sendInit(level, researcherName, player)
+        player.openMenu(
+            object : ExtendedScreenHandlerFactory<String> {
+                override fun getDisplayName(): Component = Component.translatable("item.research_book.name")
+
+                override fun createMenu(syncId: Int, playerInventory: Inventory, player: Player): ResearchBookScreenHandler {
+                    return ResearchBookScreenHandler(syncId, playerInventory, researcherName)
+                }
+
+                override fun getScreenOpeningData(player: ServerPlayer): String = researcherName
+            },
+        )
     }
 
     override fun appendHoverText(

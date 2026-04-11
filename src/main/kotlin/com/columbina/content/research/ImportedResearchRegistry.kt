@@ -19,11 +19,30 @@ object ImportedResearchRegistry {
 
     fun allGoals(): Collection<ImportedResearchGoal> = goals.values
 
+    fun allRecipePayloads(): Map<String, JsonElement> = recipes.toMap()
+
     fun getGoal(id: String): ImportedResearchGoal? = goals[id]
 
     fun hasGoal(id: String): Boolean = id in goals
 
     fun getRecipe(path: String): JsonElement? = recipes[path]
+
+    fun getRecipeResearch(path: String): String? {
+        val recipe = recipes[path]?.takeIf(JsonElement::isJsonObject)?.asJsonObject ?: return null
+        return recipe.get("research")?.asString
+    }
+
+    fun getRecipeResultItem(path: String): String? {
+        val recipe = recipes[path]?.takeIf(JsonElement::isJsonObject)?.asJsonObject ?: return null
+        return recipe.getAsJsonObject("result")?.get("item")?.asString
+    }
+
+    fun recipesForResearch(goalId: String): List<String> {
+        return recipes.entries
+            .filter { entry -> getRecipeResearch(entry.key) == goalId }
+            .map { it.key }
+            .sorted()
+    }
 
     fun researchExists(id: String): Boolean = id in goals
 
