@@ -16,6 +16,7 @@ classes/
 *.iml
 *.ipr
 *.iws
+.kotlin/
 
 # vscode
 
@@ -33,6 +34,11 @@ bin/
 
 run/
 /AncientWarfare2-reference/
+.planning/
+AGENTS.md
+golden_test_cases.md
+eula.txt
+*.log
 
 # java
 

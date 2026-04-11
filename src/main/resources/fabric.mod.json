@@ -2,10 +2,10 @@
 	"schemaVersion": 1,
 	"id": "columbina",
 	"version": "${version}",
-	"name": "Columbina",
+	"name": "Columbina-AW2",
 	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
-		"Me!"
+		"Columbina"
 	],
 	"contact": {
 		"homepage": "https://fabricmc.net/",
