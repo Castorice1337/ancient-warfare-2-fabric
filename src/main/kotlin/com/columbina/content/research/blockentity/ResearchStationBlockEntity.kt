@@ -1,6 +1,8 @@
 package com.columbina.content.research.blockentity
 
+import com.columbina.content.research.ImportedResearchRegistry
 import com.columbina.content.research.block.ResearchStationBlock
+import com.columbina.content.research.item.ResearchBookItem
 import com.columbina.content.research.screen.ResearchStationScreenHandler
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import com.columbina.runtime.research.ResearchRuntimeService
@@ -32,6 +34,13 @@ class ResearchStationBlockEntity(
     pos: BlockPos,
     state: BlockState,
 ) : BlockEntity(ColumbinaBlockEntities.RESEARCH_STATION, pos, state), MenuProvider, ExtendedScreenHandlerFactory<BlockPos> {
+    companion object {
+        private const val DEFAULT_MAX_ENERGY = 1600
+        private const val DEFAULT_MAX_INPUT = 100
+        private const val ENERGY_PER_RESEARCH_UNIT = 1
+        private const val START_CHECK_DELAY_MAX = 40
+    }
+
     private class TrackingContainer(size: Int, private val onChanged: () -> Unit) : SimpleContainer(size) {
         override fun setChanged() {
             super.setChanged()
@@ -46,6 +55,10 @@ class ResearchStationBlockEntity(
     var useAdjacentInventory: Boolean = false
     var inventoryDirection: Direction = Direction.NORTH
     var inventorySide: Direction = Direction.NORTH
+    var maxEnergy: Int = DEFAULT_MAX_ENERGY
+    var maxInput: Int = DEFAULT_MAX_INPUT
+
+    private var startCheckDelay: Int = 0
 
     val menuData: ContainerData = object : ContainerData {
         override fun get(index: Int): Int {
@@ -54,6 +67,8 @@ class ResearchStationBlockEntity(
                 1 -> if (useAdjacentInventory) 1 else 0
                 2 -> inventoryDirection.ordinal
                 3 -> inventorySide.ordinal
+                4 -> maxEnergy
+                5 -> maxInput
                 else -> 0
             }
         }
@@ -64,10 +79,12 @@ class ResearchStationBlockEntity(
                 1 -> useAdjacentInventory = value != 0
                 2 -> inventoryDirection = Direction.values()[value.coerceIn(0, Direction.values().lastIndex)]
                 3 -> inventorySide = Direction.values()[value.coerceIn(0, Direction.values().lastIndex)]
+                4 -> maxEnergy = value
+                5 -> maxInput = value
             }
         }
 
-        override fun getCount(): Int = 4
+        override fun getCount(): Int = 6
     }
 
     override fun getDisplayName(): Component = Component.translatable("guistrings.research.research_queue")
@@ -86,6 +103,9 @@ class ResearchStationBlockEntity(
         useAdjacentInventory = input.getBooleanOr("useAdjacentInventory", false)
         inventoryDirection = Direction.values()[input.getIntOr("inventoryDirection", Direction.NORTH.ordinal).coerceIn(0, Direction.values().lastIndex)]
         inventorySide = Direction.values()[input.getIntOr("inventorySide", Direction.NORTH.ordinal).coerceIn(0, Direction.values().lastIndex)]
+        maxEnergy = input.getIntOr("maxEnergy", DEFAULT_MAX_ENERGY)
+        maxInput = input.getIntOr("maxInput", DEFAULT_MAX_INPUT)
+        startCheckDelay = input.getIntOr("startCheckDelay", 0)
     }
 
     override fun saveAdditional(output: ValueOutput) {
@@ -96,13 +116,18 @@ class ResearchStationBlockEntity(
         output.putBoolean("useAdjacentInventory", useAdjacentInventory)
         output.putInt("inventoryDirection", inventoryDirection.ordinal)
         output.putInt("inventorySide", inventorySide.ordinal)
+        output.putInt("maxEnergy", maxEnergy)
+        output.putInt("maxInput", maxInput)
+        output.putInt("startCheckDelay", startCheckDelay)
     }
 
     override fun getUpdatePacket(): Packet<ClientGamePacketListener> = ClientboundBlockEntityDataPacket.create(this)
 
     override fun getUpdateTag(registries: HolderLookup.Provider) = saveWithoutMetadata(registries)
 
-    fun hasBook(): Boolean = !bookInventory.getItem(0).isEmpty
+    fun getCrafterName(): String? = ResearchBookItem.getResearcherName(bookInventory.getItem(0))
+
+    fun hasBook(): Boolean = getCrafterName() != null
 
     private fun onInventoryChanged() {
         setChanged()
@@ -121,12 +146,74 @@ class ResearchStationBlockEntity(
 
     fun tick() {
         val currentLevel = level as? net.minecraft.server.level.ServerLevel ?: return
-        val playerKey = currentLevel.players().firstOrNull()?.let(ResearchRuntimeService::playerKey) ?: return
-        val snapshot = ResearchRuntimeService.getSnapshot(currentLevel, playerKey)
+        val crafterName = getCrafterName() ?: return
+        val currentGoal = ResearchRuntimeService.getCurrentGoal(currentLevel, crafterName)
 
-        if (snapshot.currentResearch != null && storedEnergy < Int.MAX_VALUE) {
-            storedEnergy += 1
-            setChanged()
+        if (currentGoal != null && storedEnergy >= ENERGY_PER_RESEARCH_UNIT) {
+            workTick(currentLevel, crafterName, currentGoal, 1)
+        } else if (currentGoal == null) {
+            startCheckDelay--
+            if (startCheckDelay <= 0) {
+                tryStartNextResearch(currentLevel, crafterName)
+            }
         }
+    }
+
+    private fun workTick(currentLevel: net.minecraft.server.level.ServerLevel, crafterName: String, goalId: String, tickCount: Int) {
+        val goal = ImportedResearchRegistry.getGoal(goalId) ?: return
+        val progress = ResearchRuntimeService.getProgress(currentLevel, crafterName) + tickCount
+
+        if (progress >= goal.time) {
+            ResearchRuntimeService.finishResearch(currentLevel, crafterName, goalId)
+            tryStartNextResearch(currentLevel, crafterName)
+        } else {
+            ResearchRuntimeService.setProgress(currentLevel, crafterName, progress)
+        }
+
+        storedEnergy = (storedEnergy - ENERGY_PER_RESEARCH_UNIT).coerceAtLeast(0)
+        setChanged()
+    }
+
+    private fun tryStartNextResearch(currentLevel: net.minecraft.server.level.ServerLevel, crafterName: String) {
+        val queue = ResearchRuntimeService.getResearchQueueFor(currentLevel, crafterName)
+        val goalId = queue.firstOrNull() ?: run {
+            startCheckDelay = START_CHECK_DELAY_MAX
+            return
+        }
+        val goal = ImportedResearchRegistry.getGoal(goalId) ?: run {
+            startCheckDelay = START_CHECK_DELAY_MAX
+            return
+        }
+
+        val started = goal.tryStart(
+            primary = resourceInventory,
+            adjacent = adjacentInventory(),
+            useAdjacentInventory = useAdjacentInventory,
+        )
+
+        if (started) {
+            ResearchRuntimeService.startResearch(currentLevel, crafterName, goalId)
+        }
+
+        startCheckDelay = START_CHECK_DELAY_MAX
+        setChanged()
+    }
+
+    private fun adjacentInventory(): Container? {
+        val currentLevel = level ?: return null
+        val adjacentPos = blockPos.relative(inventoryDirection)
+        return currentLevel.getBlockEntity(adjacentPos) as? Container
+    }
+
+    fun addEnergy(amount: Int) {
+        storedEnergy = (storedEnergy + amount.coerceAtMost(maxInput)).coerceAtMost(maxEnergy)
+        setChanged()
+    }
+
+    // TODO Phase 4/5: restore real torque parity instead of only energy parity on the modern runtime host.
+    fun addTorqueInput(amount: Int): Int {
+        val accepted = amount.coerceAtMost(maxInput)
+        addEnergy(accepted)
+        return accepted
     }
 }

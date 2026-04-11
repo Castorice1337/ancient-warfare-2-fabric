@@ -19,7 +19,7 @@ object ColumbinaNetworking {
         PayloadTypeRegistry.playS2C().register(ResearchUpdatePayload.TYPE, ResearchUpdatePayload.STREAM_CODEC)
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, _ ->
-            ResearchRuntimeService.sendInit(handler.player)
+            ResearchRuntimeService.onPlayerLogin(handler.player)
         }
     }
 }

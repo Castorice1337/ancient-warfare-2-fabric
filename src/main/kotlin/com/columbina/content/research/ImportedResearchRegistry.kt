@@ -1,11 +1,11 @@
 package com.columbina.content.research
 
-import com.google.gson.JsonObject
+import com.google.gson.JsonElement
 
 object ImportedResearchRegistry {
     private var bootstrapped = false
     private var goals: Map<String, ImportedResearchGoal> = emptyMap()
-    private var recipes: Map<String, JsonObject> = emptyMap()
+    private var recipes: Map<String, JsonElement> = emptyMap()
 
     fun bootstrap() {
         if (bootstrapped) {
@@ -13,7 +13,7 @@ object ImportedResearchRegistry {
         }
 
         goals = LegacyResearchLoader.loadGoals()
-        recipes = LegacyResearchLoader.loadSampleRecipePayloads()
+        recipes = LegacyResearchLoader.loadRecipePayloads()
         bootstrapped = true
     }
 
@@ -23,5 +23,44 @@ object ImportedResearchRegistry {
 
     fun hasGoal(id: String): Boolean = id in goals
 
-    fun getRecipe(path: String): JsonObject? = recipes[path]
+    fun getRecipe(path: String): JsonElement? = recipes[path]
+
+    fun researchExists(id: String): Boolean = id in goals
+
+    fun getResearchableGoals(completed: Set<String>, queued: List<String>, inProgress: String?): Set<String> {
+        val totalKnowledge = linkedSetOf<String>()
+        totalKnowledge.addAll(completed)
+        totalKnowledge.addAll(queued)
+        if (inProgress != null) {
+            totalKnowledge.add(inProgress)
+        }
+
+        return goals.values
+            .filterNot { it.id in totalKnowledge }
+            .filter { goal -> resolveFullDependencies(goal.id).all { dependency -> dependency in totalKnowledge } }
+            .mapTo(linkedSetOf()) { it.id }
+    }
+
+    fun resolveFullDependencies(goalId: String): Set<String> {
+        val found = linkedSetOf<String>()
+        val open = ArrayDeque<String>()
+        val first = goals[goalId] ?: return emptySet()
+
+        open.addAll(first.dependencies)
+
+        while (open.isNotEmpty()) {
+            val dependency = open.removeFirst()
+
+            if (!found.add(dependency)) {
+                continue
+            }
+
+            val nested = goals[dependency] ?: continue
+            nested.dependencies
+                .filterNot(found::contains)
+                .forEach(open::addLast)
+        }
+
+        return found
+    }
 }
