@@ -55,7 +55,7 @@ class ResearchStationScreenHandler(
         blockPos = blockPos,
         bookInventory = SimpleContainer(1),
         resourceInventory = SimpleContainer(9),
-        stationData = SimpleContainerData(4),
+        stationData = SimpleContainerData(6),
     )
 
     constructor(syncId: Int, playerInventory: Inventory, blockEntity: ResearchStationBlockEntity) : this(

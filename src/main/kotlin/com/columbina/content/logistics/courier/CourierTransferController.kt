@@ -4,6 +4,7 @@ import com.columbina.content.logistics.entity.CourierEntity
 import com.columbina.content.logistics.item.RoutingOrderItemAccess
 import com.columbina.content.logistics.order.RoutingOrder
 import net.minecraft.world.Container
+import net.minecraft.world.WorldlyContainer
 import kotlin.math.max
 
 class CourierTransferController(private val courier: CourierEntity) {
@@ -80,6 +81,7 @@ class CourierTransferController(private val courier: CourierEntity) {
         val point = order.get(routeIndex)
         val blockEntity = courier.level().getBlockEntity(point.target)
         return when (blockEntity) {
+            is WorldlyContainer -> DirectionalContainerView(blockEntity, point.blockSide)
             is Container -> blockEntity
             else -> null
         }

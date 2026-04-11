@@ -2,6 +2,7 @@ package com.columbina.runtime.init
 
 import com.columbina.content.logistics.screen.RoutingOrderScreenHandler
 import com.columbina.content.logistics.screen.WarehouseControlScreenHandler
+import com.columbina.content.logistics.screen.WarehouseInterfaceScreenHandler
 import com.columbina.content.research.screen.ResearchBookScreenHandler
 import com.columbina.content.research.screen.ResearchStationScreenHandler
 import com.columbina.runtime.ColumbinaIds
@@ -16,6 +17,8 @@ object ColumbinaScreenHandlers {
     lateinit var RESEARCH_BOOK: MenuType<ResearchBookScreenHandler>
         private set
     lateinit var WAREHOUSE_CONTROL: MenuType<WarehouseControlScreenHandler>
+        private set
+    lateinit var WAREHOUSE_INTERFACE: MenuType<WarehouseInterfaceScreenHandler>
         private set
     lateinit var ROUTING_ORDER: MenuType<RoutingOrderScreenHandler>
         private set
@@ -41,6 +44,11 @@ object ColumbinaScreenHandlers {
             BuiltInRegistries.MENU,
             ColumbinaIds.columbinaId("warehouse_control"),
             ExtendedScreenHandlerType(::WarehouseControlScreenHandler, BlockPos.STREAM_CODEC),
+        )
+        WAREHOUSE_INTERFACE = Registry.register(
+            BuiltInRegistries.MENU,
+            ColumbinaIds.columbinaId("warehouse_interface"),
+            ExtendedScreenHandlerType(::WarehouseInterfaceScreenHandler, BlockPos.STREAM_CODEC),
         )
         ROUTING_ORDER = Registry.register(
             BuiltInRegistries.MENU,

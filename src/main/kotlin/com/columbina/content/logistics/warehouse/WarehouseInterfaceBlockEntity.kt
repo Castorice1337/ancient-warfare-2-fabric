@@ -3,21 +3,29 @@ package com.columbina.content.logistics.warehouse
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderLookup
+import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientGamePacketListener
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket
 import net.minecraft.world.ContainerHelper
+import net.minecraft.world.MenuProvider
 import net.minecraft.world.SimpleContainer
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory
+import net.minecraft.server.level.ServerPlayer
+import com.columbina.content.logistics.screen.WarehouseInterfaceScreenHandler
 
 class WarehouseInterfaceBlockEntity(
     pos: BlockPos,
     state: BlockState,
-) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_INTERFACE, pos, state), ControlledWarehouseTile {
+) : BlockEntity(ColumbinaBlockEntities.WAREHOUSE_INTERFACE, pos, state), ControlledWarehouseTile, MenuProvider, ExtendedScreenHandlerFactory<BlockPos> {
     data class InterfaceFillRequest(val requestedItem: ItemStack, val requestAmount: Int)
     data class InterfaceEmptyRequest(val slotNum: Int, val count: Int)
 
@@ -35,6 +43,14 @@ class WarehouseInterfaceBlockEntity(
     private val emptyRequests = mutableListOf<InterfaceEmptyRequest>()
     private val filters = mutableListOf<WarehouseInterfaceFilter>()
     private var initialized = false
+
+    override fun getDisplayName(): Component = Component.translatable("tile.warehouse_interface.name")
+
+    override fun createMenu(syncId: Int, playerInventory: Inventory, player: Player): AbstractContainerMenu {
+        return WarehouseInterfaceScreenHandler(syncId, playerInventory, this)
+    }
+
+    override fun getScreenOpeningData(player: ServerPlayer): BlockPos = blockPos
 
     fun tick() {
         val currentLevel = level ?: return
@@ -55,6 +71,7 @@ class WarehouseInterfaceBlockEntity(
         filters.clear()
         filters.addAll(newFilters)
         recalcRequests()
+        notifyClientUpdate()
     }
 
     fun recalcRequests() {
@@ -93,6 +110,7 @@ class WarehouseInterfaceBlockEntity(
 
         setChanged()
         getController(currentLevel)?.onInterfaceInventoryChanged(this)
+        notifyClientUpdate()
     }
 
     private fun matchesFilter(stack: ItemStack): Boolean = filters.any { it.apply(stack) }
@@ -139,6 +157,12 @@ class WarehouseInterfaceBlockEntity(
             output.putInt("controllerZ", it.z)
         }
         output.putString("filters", encodeInterfaceFilters(filters))
+    }
+
+    private fun notifyClientUpdate() {
+        setChanged()
+        val currentLevel = level ?: return
+        currentLevel.sendBlockUpdated(blockPos, blockState, blockState, net.minecraft.world.level.block.Block.UPDATE_CLIENTS)
     }
 
     override fun getUpdatePacket(): Packet<ClientGamePacketListener> = ClientboundBlockEntityDataPacket.create(this)
