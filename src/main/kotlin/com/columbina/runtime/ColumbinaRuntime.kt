@@ -1,9 +1,11 @@
 package com.columbina.runtime
 
+import com.columbina.content.structure.template.ImportedTemplateRegistry
 import com.columbina.content.research.ImportedResearchRegistry
 import com.columbina.runtime.init.ColumbinaBlockEntities
 import com.columbina.runtime.init.ColumbinaBlocks
 import com.columbina.runtime.init.ColumbinaCommands
+import com.columbina.runtime.init.ColumbinaCreativeTabs
 import com.columbina.runtime.init.ColumbinaEntities
 import com.columbina.runtime.init.ColumbinaItems
 import com.columbina.runtime.init.ColumbinaScreenHandlers
@@ -25,11 +27,13 @@ object ColumbinaRuntime {
         bootstrapped = true
 
         ImportedResearchRegistry.bootstrap()
+        ImportedTemplateRegistry.bootstrap()
         ColumbinaItems.bootstrap()
         ColumbinaBlocks.bootstrap()
         ColumbinaBlockEntities.bootstrap()
         ColumbinaEntities.bootstrap()
         ColumbinaScreenHandlers.bootstrap()
+        ColumbinaCreativeTabs.bootstrap()
         ColumbinaNetworking.bootstrap()
         ColumbinaSavedData.bootstrap()
         ColumbinaCommands.bootstrap()

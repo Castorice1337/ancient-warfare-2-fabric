@@ -1,5 +1,6 @@
 package com.columbina.runtime.init
 
+import com.columbina.content.structure.item.StructureBuilderItem
 import com.columbina.content.logistics.item.CourierSpawnerItem
 import com.columbina.content.logistics.item.RoutingOrderItem
 import com.columbina.content.research.item.ResearchBookItem
@@ -18,6 +19,8 @@ object ColumbinaItems {
     lateinit var TRADE_ORDER: Item
         private set
     lateinit var SPAWNER_COURIER: Item
+        private set
+    lateinit var STRUCTURE_BUILDER: Item
         private set
 
     private var bootstrapped = false
@@ -53,6 +56,11 @@ object ColumbinaItems {
             BuiltInRegistries.ITEM,
             ColumbinaIds.legacyId("spawner_courier"),
             CourierSpawnerItem(itemProperties("spawner_courier", 1)),
+        )
+        STRUCTURE_BUILDER = Registry.register(
+            BuiltInRegistries.ITEM,
+            ColumbinaIds.legacyId("structure_builder"),
+            StructureBuilderItem(itemProperties("structure_builder", 1)),
         )
     }
 

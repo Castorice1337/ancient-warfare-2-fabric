@@ -1,11 +1,14 @@
 package com.columbina.client.runtime
 
+import com.columbina.client.screen.DraftingStationScreen
 import com.columbina.client.screen.ResearchBookScreen
 import com.columbina.client.research.ClientResearchState
 import com.columbina.client.screen.ResearchStationScreen
 import com.columbina.client.screen.RoutingOrderScreen
 import com.columbina.client.screen.WarehouseControlScreen
 import com.columbina.client.screen.WarehouseInterfaceScreen
+import com.columbina.client.screen.WarehouseStockLinkerScreen
+import com.columbina.client.screen.WarehouseStockViewerScreen
 import com.columbina.runtime.init.ColumbinaBlocks
 import com.columbina.runtime.init.ColumbinaScreenHandlers
 import net.fabricmc.fabric.api.client.rendering.v1.BlockRenderLayerMap
@@ -26,7 +29,10 @@ object ColumbinaClientRuntime {
         MenuScreens.register(ColumbinaScreenHandlers.RESEARCH_BOOK, ::ResearchBookScreen)
         MenuScreens.register(ColumbinaScreenHandlers.WAREHOUSE_CONTROL, ::WarehouseControlScreen)
         MenuScreens.register(ColumbinaScreenHandlers.WAREHOUSE_INTERFACE, ::WarehouseInterfaceScreen)
+        MenuScreens.register(ColumbinaScreenHandlers.WAREHOUSE_STOCK_VIEWER, ::WarehouseStockViewerScreen)
+        MenuScreens.register(ColumbinaScreenHandlers.WAREHOUSE_STOCK_LINKER, ::WarehouseStockLinkerScreen)
         MenuScreens.register(ColumbinaScreenHandlers.ROUTING_ORDER, ::RoutingOrderScreen)
+        MenuScreens.register(ColumbinaScreenHandlers.DRAFTING_STATION, ::DraftingStationScreen)
         MenuScreens.register(ColumbinaScreenHandlers.RESEARCH_STATION, ::ResearchStationScreen)
     }
 }

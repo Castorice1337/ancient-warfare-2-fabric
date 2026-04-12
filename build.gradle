@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import groovy.json.JsonSlurper
 
 plugins {
 	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
@@ -97,4 +98,135 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+
+def parseLegacyIds = { File sourceFile ->
+	if (!sourceFile.exists()) {
+		return []
+	}
+	def matcher = (sourceFile.text =~ /legacyId\("([^"]+)"\)/)
+	return matcher.collect { it[1] }.unique()
+}
+
+tasks.register("validateLegacyResources") {
+	group = "verification"
+	description = "Validate that legacyId-registered blocks/items have a complete resource chain under assets/ancientwarfare"
+
+	doLast {
+		def slurper = new JsonSlurper()
+		def errors = []
+		def checkedModels = new LinkedHashSet<String>()
+
+		def normalizeId = { String value, String defaultNamespace = "minecraft" ->
+			if (value == null || value.isBlank()) {
+				return null
+			}
+			if (value.contains(":")) {
+				def parts = value.split(":", 2)
+				return [namespace: parts[0], path: parts[1]]
+			}
+			return [namespace: defaultNamespace, path: value]
+		}
+
+		def modelFileFor = { String namespace, String path ->
+			file("src/main/resources/assets/${namespace}/models/${path}.json")
+		}
+
+		def textureFileFor = { String namespace, String path ->
+			file("src/main/resources/assets/${namespace}/textures/${path}.png")
+		}
+
+		def builtinMinecraftParent = { String parent ->
+			def builtin = [
+				"minecraft:item/generated",
+				"minecraft:block/cube",
+				"minecraft:block/cube_all",
+				"minecraft:block/cube_bottom_top",
+			]
+			return parent in builtin
+		}
+
+		def checkModel
+		checkModel = { String modelId, String reason ->
+			def normalized = normalizeId(modelId)
+			if (normalized == null) {
+				errors << "Invalid model id '${modelId}' (${reason})"
+				return
+			}
+			def key = "${normalized.namespace}:${normalized.path}"
+			if (!checkedModels.add(key)) {
+				return
+			}
+
+			if (normalized.namespace == "minecraft") {
+				return
+			}
+
+			def modelFile = modelFileFor(normalized.namespace, normalized.path)
+			if (!modelFile.exists()) {
+				errors << "Missing model ${key} (${reason}) -> ${modelFile}"
+				return
+			}
+
+			def json = slurper.parse(modelFile)
+			def parent = json.parent
+			if (parent instanceof String && !parent.isBlank() && !builtinMinecraftParent(parent)) {
+				checkModel(parent, "parent of ${key}")
+			}
+
+			if (json.textures instanceof Map) {
+				json.textures.each { textureName, textureRef ->
+					if (!(textureRef instanceof String) || textureRef.startsWith("#")) {
+						return
+					}
+					def textureId = normalizeId(textureRef)
+					if (textureId == null || textureId.namespace == "minecraft") {
+						return
+					}
+					def textureFile = textureFileFor(textureId.namespace, textureId.path)
+					if (!textureFile.exists()) {
+						errors << "Missing texture ${textureId.namespace}:${textureId.path} referenced by ${key} (${textureName}) -> ${textureFile}"
+					}
+				}
+			}
+		}
+
+		def checkBlockstate = { String blockId ->
+			def blockstateFile = file("src/main/resources/assets/ancientwarfare/blockstates/${blockId}.json")
+			if (!blockstateFile.exists()) {
+				errors << "Missing root blockstate ancientwarfare:${blockId} -> ${blockstateFile}"
+				return
+			}
+
+			def json = slurper.parse(blockstateFile)
+			if (json.variants instanceof Map) {
+				json.variants.values().each { variant ->
+					if (variant instanceof Map && variant.model instanceof String) {
+						checkModel(variant.model, "blockstate ancientwarfare:${blockId}")
+					} else if (variant instanceof List) {
+						variant.findAll { it instanceof Map && it.model instanceof String }.each {
+							checkModel(it.model, "blockstate ancientwarfare:${blockId}")
+						}
+					}
+				}
+			}
+		}
+
+		def checkItemModel = { String itemId ->
+			checkModel("ancientwarfare:item/${itemId}", "registered item ancientwarfare:${itemId}")
+		}
+
+		parseLegacyIds(file("src/main/kotlin/com/columbina/runtime/init/ColumbinaBlocks.kt")).each(checkBlockstate)
+		parseLegacyIds(file("src/main/kotlin/com/columbina/runtime/init/ColumbinaItems.kt")).each(checkItemModel)
+
+		if (!errors.isEmpty()) {
+			throw new GradleException("Legacy resource validation failed:\n - " + errors.join("\n - "))
+		}
+
+		println("Legacy resource validation passed for ${checkedModels.size()} referenced models.")
+	}
+}
+
+tasks.named("check") {
+	dependsOn("validateLegacyResources")
 }

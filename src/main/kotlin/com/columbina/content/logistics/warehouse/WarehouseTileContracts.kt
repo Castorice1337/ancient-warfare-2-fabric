@@ -17,3 +17,7 @@ interface ControlledWarehouseTile {
         return level?.getBlockEntity(pos) as? WarehouseControllerBlockEntity
     }
 }
+
+interface WarehouseInventoryListener {
+    fun onWarehouseInventoryUpdated(controller: WarehouseControllerBlockEntity)
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "0": "ancientwarfare:block/structure/drafting_station",
+    "particle": "ancientwarfare:block/structure/drafting_station"
+  }
+}

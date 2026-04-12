@@ -8,7 +8,9 @@ import net.minecraft.core.Direction
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.MenuProvider
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.level.BlockGetter
 import net.minecraft.world.level.Level
@@ -66,6 +68,12 @@ class ResearchStationBlock(properties: BlockBehaviour.Properties) : BaseEntityBl
         return ResearchStationBlockEntity(pos, state)
     }
 
+    override fun setPlacedBy(level: Level, pos: BlockPos, state: BlockState, placer: LivingEntity?, stack: ItemStack) {
+        super.setPlacedBy(level, pos, state, placer, stack)
+        val player = placer as? Player ?: return
+        (level.getBlockEntity(pos) as? ResearchStationBlockEntity)?.setOwner(player)
+    }
+
     override fun getMenuProvider(state: BlockState, level: Level, pos: BlockPos): MenuProvider? {
         return level.getBlockEntity(pos) as? MenuProvider
     }
@@ -80,7 +88,10 @@ class ResearchStationBlock(properties: BlockBehaviour.Properties) : BaseEntityBl
         val menuProvider = getMenuProvider(state, level, pos)
 
         if (player is ServerPlayer && menuProvider != null) {
-            player.openMenu(menuProvider)
+            val station = level.getBlockEntity(pos) as? ResearchStationBlockEntity
+            if (station == null || station.canUse(player)) {
+                player.openMenu(menuProvider)
+            }
         }
 
         return InteractionResult.SUCCESS

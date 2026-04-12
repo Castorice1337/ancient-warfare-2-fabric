@@ -36,6 +36,8 @@ class WarehouseControllerBlockEntity(
 
     private val storageTiles = linkedSetOf<WarehouseStorageBlockEntity>()
     private val interfaceTiles = linkedSetOf<WarehouseInterfaceBlockEntity>()
+    private val stockViewers = linkedSetOf<WarehouseStockViewerBlockEntity>()
+    private val stockLinkers = linkedSetOf<WarehouseStockLinkerBlockEntity>()
     val interfacesToFill = linkedSetOf<WarehouseInterfaceBlockEntity>()
     val interfacesToEmpty = linkedSetOf<WarehouseInterfaceBlockEntity>()
     private val storageMap = WarehouseStorageMap()
@@ -142,6 +144,8 @@ class WarehouseControllerBlockEntity(
         when (tile) {
             is WarehouseStorageBlockEntity -> addStorageTile(tile)
             is WarehouseInterfaceBlockEntity -> addInterfaceTile(tile)
+            is WarehouseStockViewerBlockEntity -> addStockViewer(tile)
+            is WarehouseStockLinkerBlockEntity -> addStockLinker(tile)
         }
     }
 
@@ -149,6 +153,8 @@ class WarehouseControllerBlockEntity(
         when (tile) {
             is WarehouseStorageBlockEntity -> removeStorageTile(tile)
             is WarehouseInterfaceBlockEntity -> removeInterfaceTile(tile)
+            is WarehouseStockViewerBlockEntity -> removeStockViewer(tile)
+            is WarehouseStockLinkerBlockEntity -> removeStockLinker(tile)
         }
     }
 
@@ -172,6 +178,32 @@ class WarehouseControllerBlockEntity(
         if (interfaceTiles.add(tile)) {
             tile.setController(this)
             onInterfaceInventoryChanged(tile)
+        }
+    }
+
+    private fun addStockViewer(tile: WarehouseStockViewerBlockEntity) {
+        if (stockViewers.add(tile)) {
+            tile.setController(this)
+            tile.onWarehouseInventoryUpdated(this)
+        }
+    }
+
+    private fun removeStockViewer(tile: WarehouseStockViewerBlockEntity) {
+        if (stockViewers.remove(tile)) {
+            tile.setController(null)
+        }
+    }
+
+    private fun addStockLinker(tile: WarehouseStockLinkerBlockEntity) {
+        if (stockLinkers.add(tile)) {
+            tile.setController(this)
+            tile.onWarehouseInventoryUpdated(this)
+        }
+    }
+
+    private fun removeStockLinker(tile: WarehouseStockLinkerBlockEntity) {
+        if (stockLinkers.remove(tile)) {
+            tile.setController(null)
         }
     }
 
@@ -206,12 +238,19 @@ class WarehouseControllerBlockEntity(
 
     fun getMaxStorage(): Int = storageTiles.sumOf { it.getStorageAdditionSize() }
 
+    fun getCountOf(filter: ItemStack): Int {
+        val key = WarehouseItemKey.fromStack(filter) ?: return 0
+        return cachedItemMap[key] ?: 0
+    }
+
     fun refreshCachedState() {
         cachedItemMap.clear()
         storageTiles.forEach { it.addItems(cachedItemMap) }
         currentStored = cachedItemMap.values.sum()
         maxStorage = getMaxStorage()
         refreshDisplayInventory()
+        stockViewers.forEach { it.onWarehouseInventoryUpdated(this) }
+        stockLinkers.forEach { it.onWarehouseInventoryUpdated(this) }
         notifyClientUpdate()
     }
 

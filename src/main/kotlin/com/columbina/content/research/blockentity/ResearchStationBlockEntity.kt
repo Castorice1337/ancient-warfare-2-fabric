@@ -1,5 +1,6 @@
 package com.columbina.content.research.blockentity
 
+import com.columbina.content.logistics.courier.DirectionalContainerView
 import com.columbina.content.research.ImportedResearchRegistry
 import com.columbina.content.research.block.ResearchStationBlock
 import com.columbina.content.research.item.ResearchBookItem
@@ -19,10 +20,12 @@ import net.minecraft.world.Container
 import net.minecraft.world.ContainerHelper
 import net.minecraft.world.MenuProvider
 import net.minecraft.world.SimpleContainer
+import net.minecraft.world.WorldlyContainer
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.inventory.ContainerData
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BlockEntity
@@ -33,11 +36,12 @@ import net.minecraft.world.level.storage.ValueOutput
 class ResearchStationBlockEntity(
     pos: BlockPos,
     state: BlockState,
-) : BlockEntity(ColumbinaBlockEntities.RESEARCH_STATION, pos, state), MenuProvider, ExtendedScreenHandlerFactory<BlockPos> {
+) : BlockEntity(ColumbinaBlockEntities.RESEARCH_STATION, pos, state), MenuProvider, ExtendedScreenHandlerFactory<BlockPos>, WorldlyContainer {
     companion object {
         private const val DEFAULT_MAX_ENERGY = 1600
         private const val DEFAULT_MAX_INPUT = 100
         private const val ENERGY_PER_RESEARCH_UNIT = 1
+        private const val ENERGY_PER_WORK_UNIT = 50
         private const val START_CHECK_DELAY_MAX = 40
     }
 
@@ -57,6 +61,8 @@ class ResearchStationBlockEntity(
     var inventorySide: Direction = Direction.NORTH
     var maxEnergy: Int = DEFAULT_MAX_ENERGY
     var maxInput: Int = DEFAULT_MAX_INPUT
+    var ownerName: String? = null
+    var ownerUuid: String? = null
 
     private var startCheckDelay: Int = 0
 
@@ -106,6 +112,8 @@ class ResearchStationBlockEntity(
         maxEnergy = input.getIntOr("maxEnergy", DEFAULT_MAX_ENERGY)
         maxInput = input.getIntOr("maxInput", DEFAULT_MAX_INPUT)
         startCheckDelay = input.getIntOr("startCheckDelay", 0)
+        ownerName = input.getStringOr("ownerName", "").ifBlank { null }
+        ownerUuid = input.getStringOr("ownerUuid", "").ifBlank { null }
     }
 
     override fun saveAdditional(output: ValueOutput) {
@@ -119,6 +127,8 @@ class ResearchStationBlockEntity(
         output.putInt("maxEnergy", maxEnergy)
         output.putInt("maxInput", maxInput)
         output.putInt("startCheckDelay", startCheckDelay)
+        output.putString("ownerName", ownerName.orEmpty())
+        output.putString("ownerUuid", ownerUuid.orEmpty())
     }
 
     override fun getUpdatePacket(): Packet<ClientGamePacketListener> = ClientboundBlockEntityDataPacket.create(this)
@@ -128,6 +138,19 @@ class ResearchStationBlockEntity(
     fun getCrafterName(): String? = ResearchBookItem.getResearcherName(bookInventory.getItem(0))
 
     fun hasBook(): Boolean = getCrafterName() != null
+
+    fun setOwner(player: Player) {
+        ownerName = player.name.string
+        ownerUuid = player.uuid.toString()
+        setChanged()
+    }
+
+    fun canUse(player: Player): Boolean {
+        if (ownerUuid.isNullOrBlank() && ownerName.isNullOrBlank()) {
+            return true
+        }
+        return player.uuid.toString() == ownerUuid || player.name.string == ownerName
+    }
 
     private fun onInventoryChanged() {
         setChanged()
@@ -202,13 +225,50 @@ class ResearchStationBlockEntity(
     private fun adjacentInventory(): Container? {
         val currentLevel = level ?: return null
         val adjacentPos = blockPos.relative(inventoryDirection)
-        return currentLevel.getBlockEntity(adjacentPos) as? Container
+        val blockEntity = currentLevel.getBlockEntity(adjacentPos)
+        return when (blockEntity) {
+            is WorldlyContainer -> DirectionalContainerView(blockEntity, inventorySide)
+            is Container -> blockEntity
+            else -> null
+        }
     }
 
     fun addEnergy(amount: Int) {
         storedEnergy = (storedEnergy + amount.coerceAtMost(maxInput)).coerceAtMost(maxEnergy)
         setChanged()
     }
+
+    fun addEnergyFromWorker(workEffectiveness: Double) {
+        addEnergy((ENERGY_PER_WORK_UNIT * workEffectiveness).toInt())
+    }
+
+    fun addEnergyFromPlayer() {
+        addEnergy(ENERGY_PER_WORK_UNIT)
+    }
+
+    override fun getSlotsForFace(side: Direction): IntArray = IntArray(resourceInventory.containerSize) { it }
+
+    override fun canPlaceItemThroughFace(slot: Int, stack: ItemStack, side: Direction?): Boolean = true
+
+    override fun canTakeItemThroughFace(slot: Int, stack: ItemStack, side: Direction): Boolean = true
+
+    override fun getContainerSize(): Int = resourceInventory.containerSize
+
+    override fun isEmpty(): Boolean = resourceInventory.isEmpty
+
+    override fun getItem(slot: Int): ItemStack = resourceInventory.getItem(slot)
+
+    override fun removeItem(slot: Int, amount: Int): ItemStack = resourceInventory.removeItem(slot, amount)
+
+    override fun removeItemNoUpdate(slot: Int): ItemStack = resourceInventory.removeItemNoUpdate(slot)
+
+    override fun setItem(slot: Int, stack: ItemStack) = resourceInventory.setItem(slot, stack)
+
+    override fun stillValid(player: Player): Boolean = resourceInventory.stillValid(player)
+
+    override fun clearContent() = resourceInventory.clearContent()
+
+    override fun canPlaceItem(slot: Int, stack: ItemStack): Boolean = resourceInventory.canPlaceItem(slot, stack)
 
     // TODO Phase 4/5: restore real torque parity instead of only energy parity on the modern runtime host.
     fun addTorqueInput(amount: Int): Int {

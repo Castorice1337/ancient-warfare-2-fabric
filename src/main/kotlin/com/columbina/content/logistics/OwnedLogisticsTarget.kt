@@ -10,4 +10,11 @@ interface OwnedLogisticsTarget {
         ownerName = player.name.string
         ownerUuid = player.uuid.toString()
     }
+
+    fun canUse(player: Player): Boolean {
+        if (ownerUuid.isNullOrBlank() && ownerName.isNullOrBlank()) {
+            return true
+        }
+        return player.uuid.toString() == ownerUuid || player.name.string == ownerName
+    }
 }

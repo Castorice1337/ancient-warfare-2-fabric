@@ -1,7 +1,11 @@
 package com.columbina.runtime.init
 
+import com.columbina.content.structure.block.DraftingStationBlock
+import com.columbina.content.structure.block.StructureBuilderBlock
 import com.columbina.content.logistics.warehouse.WarehouseControllerBlock
 import com.columbina.content.logistics.warehouse.WarehouseInterfaceBlock
+import com.columbina.content.logistics.warehouse.WarehouseStockLinkerBlock
+import com.columbina.content.logistics.warehouse.WarehouseStockViewerBlock
 import com.columbina.content.logistics.warehouse.WarehouseStorageBlock
 import com.columbina.content.logistics.warehouse.WarehouseStorageTier
 import com.columbina.content.research.block.ResearchStationBlock
@@ -28,9 +32,13 @@ object ColumbinaBlocks {
         private set
     lateinit var WAREHOUSE_INTERFACE: WarehouseInterfaceBlock
         private set
-    lateinit var WAREHOUSE_STOCK_VIEWER: net.minecraft.world.level.block.Block
+    lateinit var WAREHOUSE_STOCK_VIEWER: WarehouseStockViewerBlock
         private set
-    lateinit var WAREHOUSE_STOCK_LINKER: net.minecraft.world.level.block.Block
+    lateinit var WAREHOUSE_STOCK_LINKER: WarehouseStockLinkerBlock
+        private set
+    lateinit var DRAFTING_STATION: DraftingStationBlock
+        private set
+    lateinit var STRUCTURE_BUILDER: StructureBuilderBlock
         private set
 
     private var bootstrapped = false
@@ -101,16 +109,33 @@ object ColumbinaBlocks {
         ) as WarehouseInterfaceBlock
         WAREHOUSE_STOCK_VIEWER = registerBlockWithItem(
             "warehouse_stock_viewer",
-            net.minecraft.world.level.block.Block(
+            WarehouseStockViewerBlock(
                 BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)
                     .setId(ResourceKey.create(Registries.BLOCK, ColumbinaIds.legacyId("warehouse_stock_viewer"))),
             ),
-        )
+        ) as WarehouseStockViewerBlock
         WAREHOUSE_STOCK_LINKER = registerBlockWithItem(
             "warehouse_stock_linker",
-            net.minecraft.world.level.block.Block(
+            WarehouseStockLinkerBlock(
                 BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .setId(ResourceKey.create(Registries.BLOCK, ColumbinaIds.legacyId("warehouse_stock_linker"))),
+            ),
+        ) as WarehouseStockLinkerBlock
+
+        DRAFTING_STATION = registerBlockWithItem(
+            "drafting_station",
+            DraftingStationBlock(
+                BlockBehaviour.Properties.ofFullCopy(Blocks.CRAFTING_TABLE)
+                    .setId(ResourceKey.create(Registries.BLOCK, ColumbinaIds.legacyId("drafting_station"))),
+            ),
+        ) as DraftingStationBlock
+
+        STRUCTURE_BUILDER = Registry.register(
+            BuiltInRegistries.BLOCK,
+            ColumbinaIds.legacyId("structure_builder_ticked"),
+            StructureBuilderBlock(
+                BlockBehaviour.Properties.ofFullCopy(Blocks.STONE_BRICKS)
+                    .setId(ResourceKey.create(Registries.BLOCK, ColumbinaIds.legacyId("structure_builder_ticked"))),
             ),
         )
     }

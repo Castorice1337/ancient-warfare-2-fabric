@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "ancientwarfare:block/drafting_station", "y": 180 },
+    "facing=south": { "model": "ancientwarfare:block/drafting_station" },
+    "facing=west": { "model": "ancientwarfare:block/drafting_station", "y": 90 },
+    "facing=east": { "model": "ancientwarfare:block/drafting_station", "y": 270 }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "parent": "columbina:block/core/research_station",
+  "parent": "ancientwarfare:block/core/research_station",
   "gui_light": "front",
   "display": {
     "thirdperson_righthand": {

@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "ancientwarfare:block/warehouse_stock_linker" }
+    "lit=false": { "model": "ancientwarfare:block/warehouse_stock_linker_off" },
+    "lit=true": { "model": "ancientwarfare:block/warehouse_stock_linker" }
   }
 }
